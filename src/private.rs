@@ -529,6 +529,7 @@ const fn str_eq(first: &str, second: &str) -> bool {
 /// The generated `--help` flag.
 pub const fn help_arg(has_long_help: bool) -> ArgInfo {
     ArgInfo::new("help", crate::ArgKind::Flag)
+        .action(crate::ArgAction::Help)
         .short('h')
         .long("help")
         .help(help_flag(false, has_long_help))
@@ -538,6 +539,7 @@ pub const fn help_arg(has_long_help: bool) -> ArgInfo {
 /// The generated `--version` flag.
 pub const fn version_arg() -> ArgInfo {
     ArgInfo::new("version", crate::ArgKind::Flag)
+        .action(crate::ArgAction::Version)
         .short('V')
         .long("version")
         .help("Print version")
@@ -1397,4 +1399,29 @@ pub const fn utf8(bytes: &[u8]) -> &str {
         Ok(text) => text,
         Err(_) => panic!("help text is not valid UTF-8"),
     }
+}
+
+/// Pre-order help index for a canonical command path or its aliases.
+pub fn command_index(root: &crate::CommandInfo, path: &[&str]) -> Option<usize> {
+    fn nodes(command: &crate::CommandInfo) -> usize {
+        1 + command.commands.iter().map(nodes).sum::<usize>()
+    }
+    let mut current = root;
+    let mut index = 0;
+    for part in path {
+        index += 1;
+        let mut found = None;
+        for child in current.commands {
+            if child.name == *part
+                || child.aliases.contains(part)
+                || child.visible_aliases.contains(part)
+            {
+                found = Some(child);
+                break;
+            }
+            index += nodes(child);
+        }
+        current = found?;
+    }
+    Some(index)
 }

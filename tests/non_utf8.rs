@@ -386,3 +386,40 @@ mod os {
         assert_eq!(files.extra, [PathBuf::from(OsStr::from_bytes(b"a\xFF"))]);
     }
 }
+
+#[test]
+fn custom_byte_parser_preserves_paths_and_reports_rejected_bytes() {
+    #[derive(Debug, PartialEq)]
+    struct RawPath(std::vec::Vec<u8>);
+    fn path(bytes: &[u8]) -> Result<RawPath, ()> {
+        if bytes.contains(&0) {
+            Err(())
+        } else {
+            Ok(RawPath(bytes.to_vec()))
+        }
+    }
+    #[derive(Debug, GetArgs)]
+    struct Cli {
+        #[arg(long, value_parser_bytes = path, default_value = "default")]
+        output: RawPath,
+        #[arg(value_parser_bytes = path)]
+        input: RawPath,
+    }
+    let cli = Cli::from_bytes([b"--output".as_slice(), b"out\xff", b"in\xfe"].into_iter()).unwrap();
+    assert_eq!(cli.output.0, b"out\xff");
+    assert_eq!(cli.input.0, b"in\xfe");
+    let cli = Cli::from_args(["input"].into_iter()).unwrap();
+    assert_eq!(cli.output.0, b"default");
+    let error = Cli::from_bytes([b"bad\0\xff".as_slice()].into_iter()).unwrap_err();
+    assert_eq!(
+        error,
+        Error::InvalidByteValue {
+            name: "<INPUT>",
+            value: b"bad\0\xff"
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        "invalid value 'bad\0\\xFF' for '<INPUT>'"
+    );
+}

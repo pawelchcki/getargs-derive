@@ -56,6 +56,17 @@ assert_eq!(cli.input, b"in");
 
 `&str` arguments always work for every field type, so the same struct supports both entry points.
 
+## Custom byte parsers
+
+Use `#[arg(value_parser_bytes = parse_path)]` for an owned path or another
+application type that must preserve arbitrary Unix bytes in a `no_std` build.
+The function receives `&[u8]` and returns `Result<T, E>`; no `FromStr`
+implementation or UTF-8 conversion is needed. The same function receives the
+UTF-8 bytes for string arguments, environment fallbacks and literal defaults.
+A rejected value returns `Error::InvalidByteValue` with the original bytes.
+`value_parser` remains a text parser; the two parser attributes are exclusive.
+An explicit `possible_values` constraint still requires text for comparison.
+
 ## Errors
 
 `Error::InvalidUtf8 { name, value }` carries the raw bytes. `name` is the argument name, or `None` for an argument that matches no field:

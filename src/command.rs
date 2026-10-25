@@ -8,6 +8,13 @@
 pub trait Command {
     /// The description of the command.
     const COMMAND: CommandInfo;
+
+    /// Return the same compile-time help as `-h` or `--help` for a relative
+    /// subcommand path, including inherited global options. Unknown paths
+    /// return None. No arguments, defaults or environment values are parsed.
+    fn help_for(_path: &[&str], _long: bool) -> Option<&'static str> {
+        None
+    }
 }
 
 /// The description of a command: its name, texts, arguments and subcommands.
@@ -126,6 +133,26 @@ pub enum ArgKind {
     Flag,
 }
 
+/// How a parsed argument updates its field, for command catalogs and tools.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ArgAction {
+    /// Replace a single value.
+    Set,
+    /// Append a repeated value.
+    Append,
+    /// Set a boolean to true.
+    SetTrue,
+    /// Set a boolean to false.
+    SetFalse,
+    /// Increment a counter.
+    Count,
+    /// Display generated help.
+    Help,
+    /// Display the version.
+    Version,
+}
+
 /// The description of one argument.
 ///
 /// Values are built with [`ArgInfo::new`] and the `const` builder methods, so that fields can be
@@ -173,6 +200,14 @@ pub struct ArgInfo {
     /// Whether the option is `global`: also accepted after the subcommands of its command, and
     /// listed in their help and completions.
     pub global: bool,
+    /// Static defaults, including a derived value-enum variant's CLI name.
+    pub defaults: &'static [&'static str],
+    /// Minimum values per occurrence, or total values for a positional.
+    pub min_values: usize,
+    /// Maximum values per occurrence, or total values for a positional.
+    pub max_values: Option<usize>,
+    /// The field update performed by the parser.
+    pub action: ArgAction,
 }
 
 impl ArgInfo {
@@ -197,7 +232,32 @@ impl ArgInfo {
             multiple: false,
             last: false,
             global: false,
+            defaults: &[],
+            min_values: if matches!(kind, ArgKind::Flag) { 0 } else { 1 },
+            max_values: Some(if matches!(kind, ArgKind::Flag) { 0 } else { 1 }),
+            action: if matches!(kind, ArgKind::Flag) {
+                ArgAction::SetTrue
+            } else {
+                ArgAction::Set
+            },
         }
+    }
+
+    /// Set static defaults without parsing values or consulting the environment.
+    pub const fn default_values(mut self, values: &'static [&'static str]) -> Self {
+        self.defaults = values;
+        self
+    }
+    /// Set value arity per occurrence, or for the complete positional argument.
+    pub const fn num_args(mut self, min: usize, max: Option<usize>) -> Self {
+        self.min_values = min;
+        self.max_values = max;
+        self
+    }
+    /// Set the parser's field update action.
+    pub const fn action(mut self, action: ArgAction) -> Self {
+        self.action = action;
+        self
     }
 
     /// Sets [`short`](Self::short).

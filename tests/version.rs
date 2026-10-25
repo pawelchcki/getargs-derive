@@ -173,3 +173,22 @@ fn error_display_version() {
         "getargs-derive 2.1.0-beta"
     );
 }
+
+#[test]
+fn compile_time_version_macros_preserve_build_provenance() {
+    #[derive(GetArgs)]
+    #[command(name="version-fixture",version=concat!(env!("CARGO_PKG_VERSION")," (fixture-revision)"))]
+    struct Cli {}
+    assert_eq!(
+        Cli::VERSION,
+        concat!(env!("CARGO_PKG_VERSION"), " (fixture-revision)")
+    );
+    assert_eq!(
+        Cli::from_args(["--version"].into_iter()).err(),
+        Some(Error::Version(concat!(
+            "version-fixture ",
+            env!("CARGO_PKG_VERSION"),
+            " (fixture-revision)"
+        )))
+    );
+}

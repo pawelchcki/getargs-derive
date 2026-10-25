@@ -32,7 +32,7 @@ mod value_enum;
 pub mod __private;
 
 pub use collection::Values;
-pub use command::{ArgInfo, ArgKind, Command, CommandInfo};
+pub use command::{ArgAction, ArgInfo, ArgKind, Command, CommandInfo};
 pub use error::*;
 pub use input::Lossy;
 pub use value_enum::{ParseValueEnumError, ValueEnum};

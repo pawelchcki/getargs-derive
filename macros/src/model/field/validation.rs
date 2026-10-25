@@ -10,6 +10,7 @@ const VALUE_PARSER_EXAMPLE: &str = "`value_parser = parse_port` or `value_parser
 
 pub(crate) enum ValueParser {
     Function(syn::Path),
+    Bytes(syn::Path),
     Range(ExprRange),
 }
 
@@ -41,6 +42,28 @@ pub(super) fn value_parser(meta: &ParseNestedMeta, raw: &mut RawField) -> syn::R
         }
     };
     set_once(&mut raw.value_parser, parser, meta)
+}
+
+pub(super) fn value_parser_bytes(meta: &ParseNestedMeta, raw: &mut RawField) -> syn::Result<()> {
+    let expr: Expr = require_value(
+        meta,
+        "value_parser_bytes",
+        "value_parser_bytes = parse_path",
+    )?
+    .parse()?;
+    let Expr::Path(path) = expr else {
+        return Err(syn::Error::new_spanned(
+            expr,
+            "`value_parser_bytes` expects a function path",
+        ));
+    };
+    if path.qself.is_some() || !path.attrs.is_empty() {
+        return Err(syn::Error::new_spanned(
+            path,
+            "`value_parser_bytes` expects a function path",
+        ));
+    }
+    set_once(&mut raw.value_parser, ValueParser::Bytes(path.path), meta)
 }
 
 fn parse_possible_values(meta: &ParseNestedMeta) -> syn::Result<PossibleValues> {
@@ -104,7 +127,7 @@ fn key_error(
     message: impl Fn(&str) -> String,
 ) -> Option<syn::Error> {
     match (value_parser, possible_values) {
-        (Some(ValueParser::Function(path)), _) => {
+        (Some(ValueParser::Function(path) | ValueParser::Bytes(path)), _) => {
             Some(syn::Error::new_spanned(path, message("value_parser")))
         }
         (Some(ValueParser::Range(range)), _) => {
