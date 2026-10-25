@@ -144,12 +144,26 @@ fn names<T: quote::ToTokens>(aliases: &[&crate::model::Alias<T>]) -> Vec<TokenSt
 
 pub(super) fn constants(input: &DeriveInput, model: &Model) -> TokenStream {
     let container = &model.container;
+    let groups = crate::model::resolve_groups(&container.groups, &model.fields);
+    let metadata = |field: &FieldModel| {
+        let info = arg_info(field);
+        // A required one-member group makes that argument unconditionally
+        // required. Multi-member groups still express a choice, not individual
+        // required arguments.
+        if groups.iter().any(|group| {
+            group.required && group.members.len() == 1 && group.members[0].name == field.name
+        }) {
+            quote! { #info.required(true) }
+        } else {
+            info
+        }
+    };
     let args = Merged {
         element: quote! { getargs_derive::ArgInfo },
         fill: quote! { getargs_derive::ArgInfo::new("", getargs_derive::ArgKind::Flag) },
         constant: "ARGS",
     }
-    .tokens(model, |field| Some(vec![arg_info(field)]));
+    .tokens(model, |field| Some(vec![metadata(field)]));
     let has_long = if model.flattened.is_empty() {
         let has_long = has_long_help(container, &model.fields);
         quote! { #has_long }
@@ -166,7 +180,7 @@ pub(super) fn constants(input: &DeriveInput, model: &Model) -> TokenStream {
         reserved.push(quote! { getargs_derive::__private::version_arg() });
     }
     let command_args = if model.flattened.is_empty() {
-        let items = model.fields.iter().map(arg_info);
+        let items = model.fields.iter().map(metadata);
         quote! { &[#(#items,)* #(#reserved),*] }
     } else {
         let args = static_self(input);

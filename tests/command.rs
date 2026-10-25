@@ -213,6 +213,27 @@ fn optional_positional_collection_metadata() {
     assert!(files.is_positional());
 }
 
+#[derive(GetArgs)]
+#[command(group(id = "points", required), group(id = "choice", required))]
+struct RequiredGroups<'a> {
+    #[arg(long, group = "points")]
+    point: Values<&'a str, 8>,
+    #[arg(long, group = "choice")]
+    left: bool,
+    #[arg(long, group = "choice")]
+    right: bool,
+}
+
+#[test]
+fn required_groups_only_mark_unconditionally_required_arguments() {
+    let args = RequiredGroups::COMMAND.args;
+    assert!(args[0].required);
+    assert!(!args[1].required);
+    assert!(!args[2].required);
+    assert!(RequiredGroups::from_args(["--left"].into_iter()).is_err());
+    assert!(RequiredGroups::from_args(["--point", "1,2", "--left"].into_iter()).is_ok());
+}
+
 #[test]
 fn defaults_actions_and_arity_describe_the_executable_parser() {
     assert_eq!(Cli::COMMAND.args[2].defaults, ["auto"]);
