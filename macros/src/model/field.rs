@@ -62,6 +62,7 @@ const ARG_KEYS: &[Key<RawField>] = &[
     Key::new("value_enum", value_enum::value_enum),
     Key::new("value_name", help::value_name),
     Key::new("value_parser", validation::value_parser),
+    Key::new("value_parser_bytes", validation::value_parser_bytes),
     Key::new("visible_alias", aliases::visible_alias),
     Key::new("visible_aliases", aliases::visible_aliases),
     Key::new("visible_short_alias", aliases::visible_short_alias),

@@ -118,6 +118,14 @@ pub enum Error<'a> {
         value: &'a str,
     },
 
+    /// A raw-byte value parser rejected a value, without requiring UTF-8.
+    InvalidByteValue {
+        /// The argument name, as displayed in help.
+        name: &'static str,
+        /// The rejected bytes, without UTF-8 conversion.
+        value: &'a [u8],
+    },
+
     /// A value is not one of the argument's `possible_values`, e.g. `turbo` for
     /// `possible_values = ["fast", "slow"]`.
     ///
@@ -285,6 +293,9 @@ impl core::fmt::Display for Error<'_> {
             Error::InvalidArguments => f.write_str("the arguments could not be parsed"),
             Error::MissingOptionValue(name) => {
                 write!(f, "a value is required for '{name}' but none was supplied")
+            }
+            Error::InvalidByteValue { name, value } => {
+                write!(f, "invalid value '{}' for '{}'", crate::Lossy(value), name)
             }
             Error::InvalidValue { name, value } => {
                 write!(f, "invalid value '{value}' for '{name}'")

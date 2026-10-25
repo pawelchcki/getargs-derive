@@ -59,6 +59,13 @@ fn raw_conversion(
     value: &TokenStream,
     error_name: &str,
 ) -> Option<TokenStream> {
+    if let Some(ValueParser::Bytes(path)) = &field.value_parser {
+        return Some(quote! {
+            #path(getargs_derive::__private::bytes(#value)).map_err(|_| getargs_derive::Error::InvalidByteValue {
+                name: #error_name, value: getargs_derive::__private::bytes(#value),
+            })?
+        });
+    }
     if field.value_enum || field.value_parser.is_some() {
         return None;
     }
