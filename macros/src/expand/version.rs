@@ -7,6 +7,7 @@ pub(super) fn version_value(container: &ContainerModel) -> Option<TokenStream> {
     Some(match container.version.as_ref()? {
         Version::Package => quote! { ::core::env!("CARGO_PKG_VERSION") },
         Version::Literal(version) => quote! { #version },
+        Version::Macro(expression) => quote! { #expression },
     })
 }
 

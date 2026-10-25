@@ -90,6 +90,7 @@ pub(crate) struct ContainerModel {
 pub(crate) enum Version {
     Package,
     Literal(String),
+    Macro(syn::ExprMacro),
 }
 
 #[derive(Default)]
