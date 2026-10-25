@@ -75,20 +75,27 @@ fn default_text(default: &DefaultValue) -> String {
 }
 
 fn value_enum_default(field: &FieldModel, default: &DefaultValue) -> Option<Segment> {
+    enum_default_tokens(field, default).map(Segment::Str)
+}
+
+pub(crate) fn enum_default_tokens(
+    field: &FieldModel,
+    default: &DefaultValue,
+) -> Option<proc_macro2::TokenStream> {
     let DefaultValue::Expr(Expr::Path(path)) = default else {
         return None;
     };
     let ident = path.path.segments.last()?.ident.unraw().to_string();
     let fallback = expr_text(&Expr::Path(path.clone()));
     let value_ty = &field.value_ty;
-    Some(Segment::Str(quote! {
+    Some(quote! {
         getargs_derive::__value_name(
             <#value_ty as getargs_derive::ValueEnum>::__VARIANT_IDENTS,
             <#value_ty as getargs_derive::ValueEnum>::POSSIBLE_VALUES,
             #ident,
             #fallback,
         )
-    }))
+    })
 }
 
 fn possible_values(field: &FieldModel) -> Option<Segment> {

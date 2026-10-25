@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
-use getargs_derive::{ArgInfo, ArgKind, Command, CommandInfo, GetArgs, ValueEnum, Values};
+use getargs_derive::{
+    ArgAction, ArgInfo, ArgKind, Command, CommandInfo, GetArgs, ValueEnum, Values,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum Color {
@@ -176,6 +178,8 @@ fn collection_metadata() {
             .value_name("INCLUDE")
             .help("Header directories")
             .multiple(true)
+            .action(ArgAction::Append)
+            .default_values(&["include"])
     );
     assert_eq!(
         args[1],
@@ -184,6 +188,8 @@ fn collection_metadata() {
             .help("Source files")
             .required(true)
             .multiple(true)
+            .action(ArgAction::Append)
+            .num_args(1, None)
     );
     assert!(args[2].multiple);
     assert!(args[2].last);
@@ -205,4 +211,68 @@ fn optional_positional_collection_metadata() {
     assert!(files.multiple);
     assert!(!files.required);
     assert!(files.is_positional());
+}
+
+#[test]
+fn defaults_actions_and_arity_describe_the_executable_parser() {
+    assert_eq!(Cli::COMMAND.args[2].defaults, ["auto"]);
+    let count = Verbosity::COMMAND.args[0];
+    assert_eq!(count.action, ArgAction::Count);
+    assert_eq!(count.defaults, ["0"]);
+    assert_eq!((count.min_values, count.max_values), (0, Some(0)));
+    let repeated = Compile::COMMAND.args[0];
+    assert_eq!(repeated.defaults, ["include"]);
+    assert_eq!((repeated.min_values, repeated.max_values), (1, Some(1)));
+    let trailing = Compile::COMMAND.args[2];
+    assert_eq!(trailing.action, ArgAction::Append);
+    assert_eq!((trailing.min_values, trailing.max_values), (0, None));
+    assert_eq!(Cli::COMMAND.args[4].defaults, ["false"]);
+    assert_eq!(Cli::COMMAND.args[7].action, ArgAction::Help);
+    assert_eq!(Cli::COMMAND.args[8].action, ArgAction::Version);
+}
+
+#[derive(GetArgs)]
+#[command(name = "catalog")]
+struct Catalog<'a> {
+    #[arg(long, global)]
+    profile: Option<&'a str>,
+    #[command(subcommand)]
+    command: CatalogCommand<'a>,
+}
+#[derive(getargs_derive::Subcommand)]
+enum CatalogCommand<'a> {
+    #[command(hide)]
+    Hidden,
+    #[command(alias = "do")]
+    Run {
+        input: &'a str,
+        #[command(subcommand)]
+        command: Inner,
+    },
+}
+#[derive(getargs_derive::Subcommand)]
+enum Inner {
+    Go,
+}
+
+#[test]
+fn catalog_help_is_the_same_static_help_returned_by_the_parser() {
+    for (path, argv) in [
+        (&["run", "go"][..], &["run", "go", "--help"][..]),
+        (&["do", "go"][..], &["do", "go", "--help"][..]),
+        (&["hidden"][..], &["hidden", "--help"][..]),
+    ] {
+        let error = Catalog::from_args_with_env(argv.iter().copied(), |_| None)
+            .err()
+            .unwrap();
+        let getargs_derive::Error::Help(help) = error else {
+            panic!("expected generated help")
+        };
+        assert_eq!(Catalog::help_for(path, true), Some(help));
+        assert!(help.contains("--profile"));
+    }
+    assert_eq!(Catalog::help_for(&["missing"], true), None);
+    assert_eq!(Catalog::help_for(&["run", "missing"], true), None);
+    assert_eq!(Catalog::help_for(&[], false), Some(Catalog::HELP));
+    assert_eq!(Bare::<u8>::help_for(&[], true), Some(Bare::<u8>::LONG_HELP));
 }

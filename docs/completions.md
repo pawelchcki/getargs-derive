@@ -9,7 +9,7 @@ the scripts complete option names, possible values and [subcommands][guide-subco
 `#[derive(GetArgs)]` implements the [`Command`](crate::Command) trait, whose `COMMAND` constant is a [`CommandInfo`](crate::CommandInfo)
 describing the command: its name, `about` and `long_about` texts, version and arguments, flattened structs included.
 Each argument is an [`ArgInfo`](crate::ArgInfo) with its kind, short and long names, visible and hidden aliases, value name, help,
-possible values, environment variable and whether it is hidden, required, repeatable or `global`. The generated `--help` and `--version` flags are
+possible values, environment variable, defaults, value arity, field update action and whether it is hidden, required, repeatable or `global`. The generated `--help` and `--version` flags are
 listed last. `commands` lists the subcommands of a struct with a `#[command(subcommand)]` field, recursively, each a `CommandInfo` with
 its own arguments (its `--help` flag included), aliases, `hidden` flag and `subcommand_required`; the `global` arguments of a parent are
 not repeated in the arguments of its subcommands.
@@ -42,6 +42,19 @@ assert_eq!(command.args[1].visible_aliases, ["destination"]);
 
 `CommandInfo` and `ArgInfo` are `#[non_exhaustive]`: they are built with `new` and `const` builder methods, so that later releases can
 describe more of the command without breaking code that reads them.
+
+`Command::help_for(path, long)` returns the same static help that the parser
+would return for a canonical subcommand path or its aliases. It includes global
+options and does not evaluate arguments, defaults or environment fallbacks.
+Unknown paths return `None`. This lets catalogs reuse the generated help in a
+`no_std` build without implementing a second help renderer.
+
+`ArgInfo::defaults` records literal defaults, the command-line name of a derived
+value-enum default, and the source expression of other `default_value_t` values
+(the same compile-time description used in help). `min_values`/`max_values`
+describe values per occurrence, or the total values of a positional collection.
+`action` distinguishes replacement, append, boolean flags, counters and generated
+help/version flags. Reading these fields does not parse or allocate anything.
 
 ## Generating Scripts and Man Pages
 
